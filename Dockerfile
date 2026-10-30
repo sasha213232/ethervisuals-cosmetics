@@ -1,13 +1,19 @@
-# Ether Visuals cosmetics server - single Java file, no build step needed.
-# `java CosmeticsServer.java` single-file source-launch works directly from a JDK 21+ image.
-FROM eclipse-temurin:21-jre-jammy
-
+# Ether Visuals cosmetics server - single Java file, no external dependencies.
+#
+# Two stages: compile with a full JDK (javac needs the compiler module, which a JRE-only image does not
+# have - that is what made the first version of this Dockerfile fail to deploy), then run the compiled
+# class in a lean JRE image, so the final image stays small.
+FROM eclipse-temurin:21-jdk-jammy AS build
 WORKDIR /app
 COPY CosmeticsServer.java .
+RUN javac CosmeticsServer.java
+
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /app
+COPY --from=build /app/*.class ./
 
 ENV PORT=8085
 ENV ALLOW_OFFLINE=true
 EXPOSE 8085
 
-# Single-file source launch (JEP 330): no separate compile step, no jar to build.
-ENTRYPOINT ["java", "CosmeticsServer.java"]
+ENTRYPOINT ["java", "CosmeticsServer"]
